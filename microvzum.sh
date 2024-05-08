@@ -5,9 +5,6 @@ NUM_PARTS=$2
 
 echo "Downloading $FILE_URL in $NUM_PARTS parts..."
 
-# construct request URL
-REQUEST_URL=${FILE_URL/datoid.cz/datoid.cz/f}?request=1
-
 # for file name, use last segment of url, but replace last - with .
 FILE_NAME=$(echo $FILE_URL | sed 's/.*\///' | sed 's/-\([^-]*\)$/\.\1/')
 AUX_DIR_NAME=.microvzum-$FILE_NAME-$NUM_PARTS
@@ -31,7 +28,13 @@ for PART_INDEX in $(seq 0 $((NUM_PARTS - 1))); do
         > /dev/null
 
     # get a new download URL
-    DOWNLOAD_URL=$(curl $REQUEST_URL --silent --cookie $COOKIE_JAR | sed -n 's/.*"download_link":"\([^"]*\)".*/\1/p')
+    RESPONSE=$(curl ${FILE_URL/datoid.cz/datoid.cz/f}?request=1 --silent --cookie $COOKIE_JAR)
+    DOWNLOAD_URL=$(echo "$RESPONSE" | sed -n 's/.*"download_link":"\([^"]*\)".*/\1/p')
+    if [ -z "$DOWNLOAD_URL" ]; then
+        ERROR=$(echo "$RESPONSE" | sed -n 's/.*"error":"\([^"]*\)".*/\1/p')
+        echo "Failed to get download URL: $ERROR"
+        exit 1
+    fi
 
     # compute part range
     PART_START=$((PART_INDEX * PART_SIZE))
